@@ -1,10 +1,9 @@
-Options -Indexes
-
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Hostinger fallback when the domain document root points to the
-    # Laravel project directory instead of the public directory.
+    # Shared-hosting fallback when the domain document root cannot be changed
+    # to Laravel's public directory. Keep the browser URL clean while serving
+    # every request from public/.
     RewriteCond %{REQUEST_URI} !^/public(?:/|$)
     RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
