@@ -14,7 +14,9 @@ class RetentionController extends Controller
 {
     public function index(Request $r)
     {
-        $q = RetentionMessage::with('customer.retentionScore', 'lead', 'assignee', 'task')->when($r->status, fn ($q, $v) => $q->where('status', $v))->when($r->type, fn ($q, $v) => $q->where('message_type', $v))->when($r->range, function ($q, $v) {
+        $q = RetentionMessage::with('customer.retentionScore', 'lead', 'assignee', 'task')
+            ->when($r->user()->role?->slug === 'sales-executive', fn ($query) => $query->where('assigned_to', $r->user()->id))
+            ->when($r->status, fn ($q, $v) => $q->where('status', $v))->when($r->type, fn ($q, $v) => $q->where('message_type', $v))->when($r->range, function ($q, $v) {
             $days = match ($v) {
                 'today' => 0,'7' => 7,'15' => 15,'30' => 30,default => null
             };

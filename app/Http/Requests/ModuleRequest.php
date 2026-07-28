@@ -6,6 +6,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class ModuleRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        if (in_array($this->route()?->getName(), ['leads.store', 'leads.update'])
+            && $this->user()?->role?->slug === 'sales-executive') {
+            $this->merge(['assigned_to' => $this->user()->id]);
+        }
+    }
+
     public function authorize(): bool
     {
         return true;

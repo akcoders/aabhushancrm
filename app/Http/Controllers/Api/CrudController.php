@@ -18,9 +18,12 @@ abstract class CrudController extends Controller
 
     protected array $with = [];
 
+    protected ?string $ownershipColumn = null;
+
     public function index(Request $r)
     {
         $q = ($this->model)::query()->with($this->with);
+        $this->scopeOwned($q);
         if ($s = $r->string('search')->toString()) {
             $q->where(fn ($x) => collect($this->searchable)->each(fn ($f, $i) => $i ? $x->orWhere($f, 'like', "%$s%") : $x->where($f, 'like', "%$s%")));
         }foreach ($this->filterable as $f) {
@@ -43,12 +46,15 @@ abstract class CrudController extends Controller
 
     public function show(int $id)
     {
-        return new CrmResource(($this->model)::with($this->detailWith())->findOrFail($id));
+        $model = ($this->model)::with($this->detailWith())->findOrFail($id);
+        $this->authorizeOwned($model);
+        return new CrmResource($model);
     }
 
     public function update(ModuleRequest $r, int $id, ActivityService $log)
     {
         $m = ($this->model)::findOrFail($id);
+        $this->authorizeOwned($m);
         $old = $m->getOriginal();
         $m->update($r->validated());
         $log->log('updated', $m, ['old' => $old, 'new' => $m->getChanges()]);
@@ -59,6 +65,7 @@ abstract class CrudController extends Controller
     public function destroy(int $id, ActivityService $log)
     {
         $m = ($this->model)::findOrFail($id);
+        $this->authorizeOwned($m);
         $m->delete();
         $log->log('deleted', $m);
 
@@ -73,5 +80,24 @@ abstract class CrudController extends Controller
     protected function detailWith(): array
     {
         return $this->with;
+    }
+
+    protected function isSalesExecutive(): bool
+    {
+        return auth()->user()?->role?->slug === 'sales-executive';
+    }
+
+    protected function scopeOwned($query): void
+    {
+        if ($this->ownershipColumn && $this->isSalesExecutive()) {
+            $query->where($this->ownershipColumn, auth()->id());
+        }
+    }
+
+    protected function authorizeOwned($model): void
+    {
+        if ($this->ownershipColumn && $this->isSalesExecutive()) {
+            abort_unless((int) $model->{$this->ownershipColumn} === (int) auth()->id(), 403, 'This record is assigned to another salesperson.');
+        }
     }
 }

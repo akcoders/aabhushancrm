@@ -299,9 +299,25 @@ class CrmApiTest extends TestCase
         $this->assertTrue($executive->hasPermission('sales.create'));
         $this->assertFalse($executive->hasPermission('sales.delete'));
 
-        $this->withToken($executive->createToken('test')->plainTextToken)
+        $token = $executive->createToken('test')->plainTextToken;
+        $this->withToken($token)
             ->getJson('/api/dashboard')
             ->assertOk()
-            ->assertJsonStructure(['metrics', 'staff_performance']);
+            ->assertJsonPath('scope', 'personal')
+            ->assertJsonPath('metrics.total_leads', Lead::where('assigned_to', $executive->id)->count())
+            ->assertJsonPath('staff_performance.0.id', $executive->id)
+            ->assertJsonCount(1, 'staff_performance');
+
+        $leadList = $this->withToken($token)->getJson('/api/leads?per_page=100')->assertOk()->json('data');
+        $this->assertNotEmpty($leadList);
+        $this->assertTrue(collect($leadList)->every(fn ($lead) => $lead['assigned_to'] === $executive->id));
+        $otherLead = Lead::where('assigned_to', '!=', $executive->id)->firstOrFail();
+        $this->withToken($token)->getJson("/api/leads/{$otherLead->id}")->assertForbidden();
+
+        $customerList = $this->withToken($token)->getJson('/api/customers?per_page=100')->assertOk()->json('data');
+        $this->assertNotEmpty($customerList);
+        $this->assertTrue(collect($customerList)->every(fn ($customer) => $customer['assigned_to'] === $executive->id));
+        $otherCustomer = Customer::where('assigned_to', '!=', $executive->id)->firstOrFail();
+        $this->withToken($token)->getJson("/api/customers/{$otherCustomer->id}")->assertForbidden();
     }
 }

@@ -125,8 +125,10 @@ return ['message' => 'WhatsApp click logged', 'url' => $smartTask->whatsapp_url]
     public function dashboard(Request $r)
     {
         $base = Task::whereNotNull('task_type');
+        $personal = $r->user()->role?->slug === 'sales-executive';
+        if ($personal) $base->where('assigned_to', $r->user()->id);
 
-        return ['summary' => ['today' => (clone $base)->whereDate('due_at', today())->whereIn('status', ['pending', 'in_progress'])->count(), 'overdue' => (clone $base)->where('due_at', '<', now())->whereIn('status', ['pending', 'in_progress'])->count(), 'urgent' => (clone $base)->where('priority', 'urgent')->whereIn('status', ['pending', 'in_progress'])->count(), 'high' => (clone $base)->where('priority', 'high')->whereIn('status', ['pending', 'in_progress'])->count(), 'mine' => (clone $base)->where('assigned_to', $r->user()->id)->whereIn('status', ['pending', 'in_progress'])->count(), 'completed_today' => (clone $base)->whereDate('completed_at', today())->count()], 'groups' => Task::with($this->with)->whereNotNull('task_type')->whereIn('status', ['pending', 'in_progress'])->whereDate('due_at', '<=', today())->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")->get()->groupBy('task_type')];
+        return ['summary' => ['today' => (clone $base)->whereDate('due_at', today())->whereIn('status', ['pending', 'in_progress'])->count(), 'overdue' => (clone $base)->where('due_at', '<', now())->whereIn('status', ['pending', 'in_progress'])->count(), 'urgent' => (clone $base)->where('priority', 'urgent')->whereIn('status', ['pending', 'in_progress'])->count(), 'high' => (clone $base)->where('priority', 'high')->whereIn('status', ['pending', 'in_progress'])->count(), 'mine' => (clone $base)->where('assigned_to', $r->user()->id)->whereIn('status', ['pending', 'in_progress'])->count(), 'completed_today' => (clone $base)->whereDate('completed_at', today())->count()], 'groups' => Task::with($this->with)->whereNotNull('task_type')->when($personal, fn ($query) => $query->where('assigned_to', $r->user()->id))->whereIn('status', ['pending', 'in_progress'])->whereDate('due_at', '<=', today())->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 ELSE 3 END")->get()->groupBy('task_type')];
     }
 
     private function scoped($callback)

@@ -22,6 +22,8 @@ class CustomerController extends CrudController
 
     protected array $with = ['lead'];
 
+    protected ?string $ownershipColumn = 'assigned_to';
+
     protected function detailWith(): array
     {
         return ['lead', 'familyMembers', 'sales.items', 'customOrders.statusLogs', 'loyaltyPoints', 'giftCards.transactions', 'privilegeCards.issuer'];
@@ -29,7 +31,8 @@ class CustomerController extends CrudController
 
     protected function defaults(Request $r): array
     {
-        return ['customer_code' => 'CUS-'.now()->format('ymd').'-'.str_pad((string) (Customer::withTrashed()->count() + 1), 4, '0', STR_PAD_LEFT)];
+        return ['customer_code' => 'CUS-'.now()->format('ymd').'-'.str_pad((string) (Customer::withTrashed()->count() + 1), 4, '0', STR_PAD_LEFT)]
+            + ($this->isSalesExecutive() ? ['assigned_to' => auth()->id()] : []);
     }
 
     public function store(ModuleRequest $request, ActivityService $log)
@@ -58,7 +61,11 @@ class CustomerController extends CrudController
         DB::transaction(function () use ($rows, $categorization, &$created, &$updated) {
             foreach ($rows as $row) {
                 $customer = Customer::withTrashed()->where('mobile', trim($row['mobile']))->first();
+                if ($customer && $this->isSalesExecutive()) {
+                    abort_unless((int) $customer->assigned_to === (int) auth()->id(), 403, 'The Excel file contains a customer assigned to another salesperson.');
+                }
                 $values = collect($row)->only(['name', 'mobile', 'email', 'birthday', 'anniversary', 'city', 'address', 'notes'])->filter(fn ($value) => $value !== null && $value !== '')->all();
+                if ($this->isSalesExecutive()) $values['assigned_to'] = auth()->id();
                 if ($customer) {
                     if ($customer->trashed()) $customer->restore();
                     $customer->update($values); $updated++;

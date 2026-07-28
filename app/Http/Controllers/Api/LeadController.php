@@ -20,6 +20,8 @@ class LeadController extends CrudController
 
     protected array $with = ['assignee', 'exhibition'];
 
+    protected ?string $ownershipColumn = 'assigned_to';
+
     protected function detailWith(): array
     {
         return ['assignee', 'exhibition', 'notes.user', 'followups.assignee', 'history.user', 'customer'];
@@ -52,11 +54,13 @@ class LeadController extends CrudController
 
     public function convert(Lead $lead, LeadService $service)
     {
+        $this->authorizeOwned($lead);
         return response()->json(['message' => 'Lead converted successfully', 'customer' => $service->convert($lead)]);
     }
 
     public function addNote(Request $r, Lead $lead)
     {
+        $this->authorizeOwned($lead);
         $d = $r->validate(['note' => 'required|string', 'attachments' => 'nullable|array']);
 
         return response()->json($lead->notes()->create($d + ['user_id' => auth()->id()])->load('user'), 201);
@@ -64,12 +68,15 @@ class LeadController extends CrudController
 
     public function journey(Lead $lead, CustomerJourneyService $service)
     {
+        $this->authorizeOwned($lead);
         return $service->forLead($lead);
     }
 
     public function export(Request $r)
     {
-        $rows = Lead::with('assignee')->get();
+        $query = Lead::with('assignee');
+        $this->scopeOwned($query);
+        $rows = $query->get();
         $csv = "Name,Mobile,Email,Source,Status,Priority,Assigned To\n".$rows->map(fn ($x) => collect([$x->name, $x->mobile, $x->email, $x->source, $x->status, $x->priority, $x->assignee?->name])->map(fn ($v) => '"'.str_replace('"', '""', $v).'"')->join(','))->join("\n");
 
         return response($csv)->header('Content-Type', 'text/csv')->header('Content-Disposition', 'attachment; filename=leads.csv');
@@ -84,7 +91,7 @@ class LeadController extends CrudController
         while (($row = fgetcsv($handle)) !== false) {
             $d = array_combine($headers, $row);
             if (! empty($d['name']) && ! empty($d['mobile'])) {
-                Lead::create(['name' => $d['name'], 'mobile' => $d['mobile'], 'email' => $d['email'] ?? null, 'source' => $d['source'] ?? 'Import', 'status' => $d['status'] ?? 'New', 'priority' => $d['priority'] ?? 'Warm', 'created_by' => auth()->id()]);
+                Lead::create(['name' => $d['name'], 'mobile' => $d['mobile'], 'email' => $d['email'] ?? null, 'source' => $d['source'] ?? 'Import', 'status' => $d['status'] ?? 'New', 'priority' => $d['priority'] ?? 'Warm', 'assigned_to' => $this->isSalesExecutive() ? auth()->id() : null, 'created_by' => auth()->id()]);
                 $count++;
             }
         }fclose($handle);
