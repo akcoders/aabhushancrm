@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@theme { --color-gold-50:#fbf8ef; --color-gold-100:#f4ecd5; --color-gold-200:#e8d7ad; --color-gold-400:#c9a458; --color-gold-500:#b58b36; --color-gold-600:#96702c; --color-ink:#27251f; --font-sans:"Inter",ui-sans-serif,system-ui; --font-serif:"Cormorant Garamond",Georgia,serif; }
+@layer base { body { @apply m-0 bg-[#f8f6f1] text-ink antialiased; } button,a { @apply transition-colors; } input,select,textarea { @apply outline-none; } }
+@layer components {
+ .card { @apply rounded-2xl border border-[#e8e1d3] bg-white shadow-[0_8px_30px_rgba(62,50,27,.045)]; }
+ .btn-primary { @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#2c2923] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#b58b36]; }
+ .btn-secondary { @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-[#ded5c5] bg-white px-4 py-2.5 text-sm font-semibold text-[#514a3e] hover:border-[#b58b36] hover:text-[#96702c]; }
+ .field { @apply w-full rounded-xl border border-[#ded8cb] bg-white px-3.5 py-2.5 text-sm placeholder:text-[#aaa294] focus:border-[#b58b36] focus:ring-3 focus:ring-[#b58b36]/10; }
+ .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-[.08em] text-[#756d5f]; }
+ .page-title { @apply font-serif text-3xl font-semibold tracking-tight text-[#29261f]; }
+}

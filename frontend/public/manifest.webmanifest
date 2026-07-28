@@ -1,0 +1,13 @@
+{
+  "name": "Kalasha Fine Jewels CRM",
+  "short_name": "Kalasha CRM",
+  "start_url": "/crm/",
+  "scope": "/crm/",
+  "display": "standalone",
+  "background_color": "#f8f6f1",
+  "theme_color": "#1f4f2a",
+  "icons": [
+    {"src": "/crm/favicon.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/crm/favicon.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}
