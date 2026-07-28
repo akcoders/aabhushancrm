@@ -45,7 +45,10 @@ class DatabaseSeeder extends Seeder
             ][$name]]);
         }$roles['Super Admin']->permissions()->sync($permissions->pluck('id'));
         $roles['Sales Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'marketing', 'retention', 'offers', 'reports'])->pluck('id'));
-        $roles['Sales Executive']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'retention', 'tasks'])->where('slug', 'not like', '%.delete')->pluck('id'));
+        $roles['Sales Executive']->permissions()->sync($permissions
+            ->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'retention', 'tasks'])
+            ->reject(fn ($permission) => str_ends_with($permission->slug, '.delete'))
+            ->pluck('id'));
         $roles['Event Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'exhibitions', 'marketing', 'offers', 'leads', 'followups', 'reports'])->pluck('id'));
         $roles['Accountant']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'sales', 'loyalty', 'gift-cards', 'reports'])->pluck('id'));
         $allPermissions = Permission::query()->get();

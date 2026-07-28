@@ -288,4 +288,20 @@ class CrmApiTest extends TestCase
         $assignedBranch = Branch::firstOrFail();
         $this->withToken($token)->deleteJson("/api/settings/branches/{$assignedBranch->id}")->assertUnprocessable();
     }
+
+    public function test_sales_executive_has_operational_permissions_and_can_load_dashboard(): void
+    {
+        $this->seed();
+        $executive = User::whereHas('role', fn ($query) => $query->where('slug', 'sales-executive'))->firstOrFail();
+        $this->assertTrue($executive->hasPermission('dashboard.view'));
+        $this->assertTrue($executive->hasPermission('leads.view'));
+        $this->assertTrue($executive->hasPermission('customers.view'));
+        $this->assertTrue($executive->hasPermission('sales.create'));
+        $this->assertFalse($executive->hasPermission('sales.delete'));
+
+        $this->withToken($executive->createToken('test')->plainTextToken)
+            ->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonStructure(['metrics', 'staff_performance']);
+    }
 }
