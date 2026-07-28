@@ -17,6 +17,8 @@ class TaskController extends CrudController
 
     protected array $with = ['assignee'];
 
+    protected ?string $ownershipColumn = 'assigned_to';
+
     protected function defaults(Request $r): array
     {
         return ['created_by' => auth()->id()];

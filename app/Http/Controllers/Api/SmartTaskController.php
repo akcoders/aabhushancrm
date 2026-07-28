@@ -17,7 +17,9 @@ class SmartTaskController extends Controller
 
     public function index(Request $r)
     {
-        $q = Task::with($this->with)->whereNotNull('task_type')->when($r->status, fn ($q, $v) => $q->where('status', $v))->when($r->priority, fn ($q, $v) => $q->where('priority', $v))->when($r->type, fn ($q, $v) => $q->where('task_type', $v))->when($r->assigned_to, fn ($q, $v) => $q->where('assigned_to', $v))->when($r->search, fn ($q, $v) => $q->where(fn ($x) => $x->where('title', 'like', "%$v%")->orWhere('reason', 'like', "%$v%")));
+        $q = Task::with($this->with)->whereNotNull('task_type')
+            ->when($this->isSalesExecutive(), fn ($query) => $query->where('assigned_to', auth()->id()))
+            ->when($r->status, fn ($q, $v) => $q->where('status', $v))->when($r->priority, fn ($q, $v) => $q->where('priority', $v))->when($r->type, fn ($q, $v) => $q->where('task_type', $v))->when(!$this->isSalesExecutive() && $r->assigned_to, fn ($q) => $q->where('assigned_to', $r->assigned_to))->when($r->search, fn ($q, $v) => $q->where(fn ($x) => $x->where('title', 'like', "%$v%")->orWhere('reason', 'like', "%$v%")));
 
         return $q->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")->orderBy('due_at')->paginate(min((int) $r->input('per_page', 30), 100));
     }
@@ -49,11 +51,13 @@ class SmartTaskController extends Controller
 
     public function show(Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         return $smartTask->load($this->with);
     }
 
     public function start(Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         $smartTask->update(['status' => 'in_progress']);
 
         return $smartTask->fresh($this->with);
@@ -61,6 +65,7 @@ class SmartTaskController extends Controller
 
     public function complete(Request $r, Task $smartTask, SmartTaskEngineService $engine, StaffRewardService $rewards)
     {
+        $this->authorizeOwned($smartTask);
         $d = $r->validate(['outcome' => 'required|in:Interested,Not Interested,Call Later,Purchased,Visit Scheduled,WhatsApp Sent,No Response,Wrong Number', 'notes' => 'nullable', 'next_action_date' => 'nullable|date']);
         $smartTask->update(['status' => 'completed', 'completed_at' => now(), 'outcome' => $d['outcome']]);
         $rewards->award($smartTask);
@@ -83,6 +88,7 @@ return ['message' => 'Task completed and outcome recorded', 'task' => $smartTask
 
     public function skip(Request $r, Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         $d = $r->validate(['reason' => 'required|string']);
         $smartTask->update(['status' => 'skipped', 'skipped_reason' => $d['reason']]);
 
@@ -91,6 +97,7 @@ return ['message' => 'Task completed and outcome recorded', 'task' => $smartTask
 
     public function reschedule(Request $r, Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         $d = $r->validate(['due_at' => 'required|date|after:now']);
         $smartTask->update(['due_at' => $d['due_at'], 'status' => 'pending']);
 
@@ -99,6 +106,7 @@ return ['message' => 'Task completed and outcome recorded', 'task' => $smartTask
 
     public function createFollowup(Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         $leadId = $smartTask->lead_id ?? $smartTask->customer?->lead_id;
         abort_unless($leadId, 422, 'No linked lead for follow-up.');
 
@@ -107,6 +115,7 @@ return ['message' => 'Task completed and outcome recorded', 'task' => $smartTask
 
     public function whatsapp(Task $smartTask)
     {
+        $this->authorizeOwned($smartTask);
         $subject = $smartTask->customer ?? $smartTask->lead;
         abort_unless($subject, 422, 'Task has no contact.');
         CommunicationLog::create(['communicable_type' => get_class($subject), 'communicable_id' => $subject->id, 'type' => 'WhatsApp', 'direction' => 'Outbound', 'subject' => 'Smart task message', 'content' => $smartTask->whatsapp_message, 'status' => 'Opened', 'user_id' => auth()->id(), 'communicated_at' => now()]);
@@ -119,6 +128,7 @@ return ['message' => 'WhatsApp click logged', 'url' => $smartTask->whatsapp_url]
 
     public function generate(SmartTaskEngineService $engine)
     {
+        abort_if($this->isSalesExecutive(), 403, 'Only managers can generate tasks for the team.');
         return ['message' => 'Smart task generation completed', 'results' => $engine->scanAndCreateTasks()];
     }
 
@@ -134,9 +144,22 @@ return ['message' => 'WhatsApp click logged', 'url' => $smartTask->whatsapp_url]
     private function scoped($callback)
     {
         $q = Task::with($this->with)->whereNotNull('task_type');
+        if ($this->isSalesExecutive()) $q->where('assigned_to', auth()->id());
         $callback($q);
 
         return $q->orderByRaw("CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")->orderBy('due_at')->paginate(30);
+    }
+
+    private function isSalesExecutive(): bool
+    {
+        return auth()->user()?->role?->slug === 'sales-executive';
+    }
+
+    private function authorizeOwned(Task $task): void
+    {
+        if ($this->isSalesExecutive()) {
+            abort_unless((int) $task->assigned_to === (int) auth()->id(), 403, 'This task is assigned to another salesperson.');
+        }
     }
 
     private function nextAction(Task $task, array $d, SmartTaskEngineService $engine): ?Task

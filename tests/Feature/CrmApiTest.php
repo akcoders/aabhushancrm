@@ -319,5 +319,27 @@ class CrmApiTest extends TestCase
         $this->assertTrue(collect($customerList)->every(fn ($customer) => $customer['assigned_to'] === $executive->id));
         $otherCustomer = Customer::where('assigned_to', '!=', $executive->id)->firstOrFail();
         $this->withToken($token)->getJson("/api/customers/{$otherCustomer->id}")->assertForbidden();
+
+        $followups = $this->withToken($token)->getJson('/api/followups?per_page=100')->assertOk()->json('data');
+        $this->assertTrue(collect($followups)->every(fn ($followup) => $followup['assigned_to'] === $executive->id));
+        $otherFollowup = \App\Models\LeadFollowup::where('assigned_to', '!=', $executive->id)->firstOrFail();
+        $this->withToken($token)->getJson("/api/followups/{$otherFollowup->id}")->assertForbidden();
+
+        $tasks = $this->withToken($token)->getJson('/api/tasks?per_page=100')->assertOk()->json('data');
+        $this->assertTrue(collect($tasks)->every(fn ($task) => $task['assigned_to'] === $executive->id));
+        $otherTask = Task::where('assigned_to', '!=', $executive->id)->firstOrFail();
+        $this->withToken($token)->getJson("/api/tasks/{$otherTask->id}")->assertForbidden();
+
+        $sales = $this->withToken($token)->getJson('/api/sales?per_page=100')->assertOk()->json('data');
+        $this->assertNotEmpty($sales);
+        $this->assertTrue(collect($sales)->every(fn ($sale) => $sale['staff_id'] === $executive->id));
+        $otherSale = \App\Models\Sale::where('staff_id', '!=', $executive->id)->firstOrFail();
+        $this->withToken($token)->getJson("/api/sales/{$otherSale->id}")->assertForbidden();
+
+        Task::create(['title' => 'My smart task', 'task_type' => 'lead_followup_call', 'assigned_to' => $executive->id, 'created_by' => User::first()->id, 'due_at' => now(), 'status' => 'pending', 'priority' => 'medium']);
+        $otherSmartTask = Task::create(['title' => 'Other smart task', 'task_type' => 'lead_followup_call', 'assigned_to' => User::whereKeyNot($executive->id)->first()->id, 'created_by' => User::first()->id, 'due_at' => now(), 'status' => 'pending', 'priority' => 'medium']);
+        $smartTasks = $this->withToken($token)->getJson('/api/smart-tasks?per_page=100')->assertOk()->json('data');
+        $this->assertTrue(collect($smartTasks)->every(fn ($task) => $task['assigned_to'] === $executive->id));
+        $this->withToken($token)->getJson("/api/smart-tasks/{$otherSmartTask->id}")->assertForbidden();
     }
 }
