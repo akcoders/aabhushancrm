@@ -9,6 +9,7 @@ use App\Models\RetentionMessage;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Permission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -226,5 +227,41 @@ class CrmApiTest extends TestCase
                 ],
                 'tasks', 'followups', 'redemptions',
             ]);
+    }
+
+    public function test_admin_can_create_role_with_hierarchy_and_permissions(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $permissions = Permission::whereIn('slug', ['dashboard.view', 'customers.view'])->pluck('id')->all();
+
+        $this->withToken($admin->createToken('test')->plainTextToken)
+            ->postJson('/api/settings/roles', [
+                'name' => 'Customer Care Officer',
+                'hierarchy_level' => 5,
+                'permissions' => $permissions,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('name', 'Customer Care Officer')
+            ->assertJsonPath('hierarchy_level', 5)
+            ->assertJsonCount(2, 'permissions');
+    }
+
+    public function test_staff_creation_requires_a_higher_level_reporting_manager(): void
+    {
+        $this->seed();
+        $admin = User::whereHas('role', fn ($query) => $query->where('slug', 'super-admin'))->firstOrFail();
+        $executiveRole = Role::where('slug', 'sales-executive')->firstOrFail();
+        $manager = User::whereHas('role', fn ($query) => $query->where('slug', 'sales-manager'))->firstOrFail();
+        $token = $admin->createToken('test')->plainTextToken;
+        $payload = [
+            'name' => 'New Salesperson', 'email' => 'new-salesperson@example.test',
+            'password' => 'Password@123', 'role_id' => $executiveRole->id,
+        ];
+
+        $this->withToken($token)->postJson('/api/staff', $payload)->assertUnprocessable();
+        $this->withToken($token)->postJson('/api/staff', $payload + ['reporting_manager_id' => $manager->id])
+            ->assertCreated()
+            ->assertJsonPath('reporting_manager.id', $manager->id);
     }
 }

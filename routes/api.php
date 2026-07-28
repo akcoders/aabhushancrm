@@ -106,6 +106,8 @@ Route::middleware(['auth:sanctum', 'module.permission'])->group(function () {
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update']);
     Route::post('settings/branches', [SettingController::class, 'branch']);
+    Route::post('settings/roles', [SettingController::class, 'createRole']);
+    Route::put('settings/roles/{role}', [SettingController::class, 'updateRole']);
     Route::put('settings/roles/{role}/permissions', [SettingController::class, 'rolePermissions']);
     Route::get('staff/{staff}/performance', [StaffController::class, 'performance']);
     Route::apiResource('staff', StaffController::class);

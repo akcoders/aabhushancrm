@@ -13,7 +13,7 @@ class StaffController extends Controller
 {
     public function index(Request $r)
     {
-        return User::with('role', 'branch')
+        return User::with('role', 'branch', 'reportingManager:id,name')
             ->when($r->boolean('sales_only'), fn ($q) => $q->where('is_active', true)->whereHas('role', fn ($role) => $role->whereIn('slug', ['sales-manager', 'sales-executive'])))
             ->when($r->search, fn ($q, $v) => $q->where(fn ($x) => $x->where('name', 'like', "%$v%")->orWhere('email', 'like', "%$v%")))
             ->orderBy('name')
@@ -22,14 +22,15 @@ class StaffController extends Controller
 
     public function store(Request $r)
     {
-        $d = $r->validate(['name' => 'required', 'email' => 'required|email|unique:users', 'password' => 'required|min:8', 'phone' => 'nullable', 'role_id' => 'required|exists:roles,id', 'branch_id' => 'nullable|exists:branches,id']);
+        $d = $r->validate(['name' => 'required', 'email' => 'required|email|unique:users', 'password' => 'required|min:8', 'phone' => 'nullable', 'role_id' => 'required|exists:roles,id', 'reporting_manager_id' => 'nullable|exists:users,id', 'branch_id' => 'nullable|exists:branches,id']);
+        $this->validateHierarchy($d);
 
-        return response()->json(User::create($d)->load('role', 'branch'), 201);
+        return response()->json(User::create($d)->load('role', 'branch', 'reportingManager:id,name'), 201);
     }
 
     public function show(User $staff)
     {
-        return $staff->load('role.permissions', 'branch');
+        return $staff->load('role.permissions', 'branch', 'reportingManager:id,name', 'directReports:id,name,email,role_id');
     }
 
     public function performance(User $staff)
@@ -52,7 +53,7 @@ class StaffController extends Controller
         $totalTimely = $timelyTasks->count() + $timelyFollowups->count();
 
         return [
-            'staff' => $staff->load('role', 'branch'),
+            'staff' => $staff->load('role', 'branch', 'reportingManager:id,name'),
             'summary' => [
                 'assigned_actions' => $tasks->count() + $followups->count(),
                 'pending_actions' => $tasks->filter(fn ($task) => in_array(strtolower($task->status), ['pending', 'in progress', 'in_progress']))->count()
@@ -78,12 +79,13 @@ class StaffController extends Controller
 
     public function update(Request $r, User $staff)
     {
-        $d = $r->validate(['name' => 'sometimes|required', 'email' => ['sometimes', 'email', Rule::unique('users')->ignore($staff)], 'password' => 'nullable|min:8', 'phone' => 'nullable', 'role_id' => 'sometimes|exists:roles,id', 'branch_id' => 'nullable|exists:branches,id', 'is_active' => 'boolean']);
+        $d = $r->validate(['name' => 'sometimes|required', 'email' => ['sometimes', 'email', Rule::unique('users')->ignore($staff)], 'password' => 'nullable|min:8', 'phone' => 'nullable', 'role_id' => 'sometimes|exists:roles,id', 'reporting_manager_id' => ['nullable', 'exists:users,id', Rule::notIn([$staff->id])], 'branch_id' => 'nullable|exists:branches,id', 'is_active' => 'boolean']);
+        $this->validateHierarchy($d, $staff);
         if (empty($d['password'])) {
             unset($d['password']);
         }$staff->update($d);
 
-        return $staff->load('role', 'branch');
+        return $staff->load('role', 'branch', 'reportingManager:id,name');
     }
 
     public function destroy(User $staff)
@@ -92,5 +94,18 @@ class StaffController extends Controller
         $staff->tokens()->delete();
 
         return ['message' => 'Staff account deactivated'];
+    }
+
+    private function validateHierarchy(array $data, ?User $staff = null): void
+    {
+        $role = \App\Models\Role::findOrFail($data['role_id'] ?? $staff?->role_id);
+        $managerId = array_key_exists('reporting_manager_id', $data) ? $data['reporting_manager_id'] : $staff?->reporting_manager_id;
+        if ($role->hierarchy_level > 1 && !$managerId) {
+            abort(422, 'A reporting manager is required for this role.');
+        }
+        if (!$managerId) return;
+        $manager = User::with('role')->findOrFail($managerId);
+        abort_unless($manager->is_active, 422, 'Reporting manager must be active.');
+        abort_unless($manager->role && $manager->role->hierarchy_level < $role->hierarchy_level, 422, 'Reporting manager must have a higher role in the hierarchy.');
     }
 }

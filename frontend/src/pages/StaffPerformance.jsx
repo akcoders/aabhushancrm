@@ -27,7 +27,7 @@ export default function StaffPerformance(){
     <Link to="/staff" className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#8c6b2b]"><ArrowLeft size={16}/>Back to staff</Link>
     <div className="card mb-6 flex flex-wrap items-center gap-5 p-6">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#29261f] font-serif text-2xl text-[#dbbd70]">{staff.name[0]}</div>
-      <div className="flex-1"><p className="text-xs font-semibold uppercase tracking-widest text-[#aa8131]">Staff performance profile</p><h2 className="page-title">{staff.name}</h2><p className="text-sm text-[#81796d]">{staff.email} · {staff.role?.name} · {staff.branch?.name||'No branch'}</p></div>
+      <div className="flex-1"><p className="text-xs font-semibold uppercase tracking-widest text-[#aa8131]">Staff performance profile</p><h2 className="page-title">{staff.name}</h2><p className="text-sm text-[#81796d]">{staff.email} · {staff.role?.name} · {staff.branch?.name||'No branch'} · Reports to {staff.reporting_manager?.name||'Top level'}</p></div>
       <Badge>{staff.is_active?'Active':'Inactive'}</Badge>
     </div>
     <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label,value,Icon])=><div className="card p-5" key={label}><div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[#f6edd8] text-[#a67c2b]"><Icon size={19}/></div><div className="text-2xl font-bold">{typeof value==='number'?number(value):value}</div><div className="text-xs text-[#81796d]">{label}</div></div>)}</div>

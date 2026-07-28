@@ -23,7 +23,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role_id', 'branch_id', 'phone', 'is_active', 'last_login_at', 'reward_points', 'notification_preferences',
+        'role_id', 'reporting_manager_id', 'branch_id', 'phone', 'is_active', 'last_login_at', 'reward_points', 'notification_preferences',
     ];
 
     /**
@@ -58,6 +58,16 @@ class User extends Authenticatable
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function reportingManager()
+    {
+        return $this->belongsTo(User::class, 'reporting_manager_id');
+    }
+
+    public function directReports()
+    {
+        return $this->hasMany(User::class, 'reporting_manager_id');
     }
 
     public function hasPermission(string $permission): bool

@@ -40,7 +40,9 @@ class DatabaseSeeder extends Seeder
         }
         $roles = [];
         foreach (['Super Admin', 'Sales Manager', 'Sales Executive', 'Event Manager', 'Accountant'] as $name) {
-            $roles[$name] = Role::create(['name' => $name, 'slug' => Str::slug($name)]);
+            $roles[$name] = Role::create(['name' => $name, 'slug' => Str::slug($name), 'hierarchy_level' => [
+                'Super Admin' => 1, 'Sales Manager' => 3, 'Sales Executive' => 4, 'Event Manager' => 3, 'Accountant' => 3,
+            ][$name]]);
         }$roles['Super Admin']->permissions()->sync($permissions->pluck('id'));
         $roles['Sales Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'marketing', 'retention', 'offers', 'reports'])->pluck('id'));
         $roles['Sales Executive']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'retention', 'tasks'])->where('slug', 'not like', '%.delete')->pluck('id'));
