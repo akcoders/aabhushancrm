@@ -9,7 +9,6 @@ class CustomerCategorizationService
 {
     public function categorize(Customer $customer): Customer
     {
-        if ($customer->category_override) return $customer;
         $value = (float) $customer->lifetime_value;
         $rule = CustomerCategoryRule::where('is_active', true)
             ->where('minimum_purchase', '<=', $value)

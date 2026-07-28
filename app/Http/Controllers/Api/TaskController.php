@@ -26,7 +26,10 @@ class TaskController extends CrudController
     {
         $response = parent::update($request, $id, $log);
         $task = Task::findOrFail($id);
-        if (strtolower($task->status) === 'completed') app(StaffRewardService::class)->award($task);
+        if (strtolower($task->status) === 'completed') {
+            if (!$task->completed_at) $task->updateQuietly(['completed_at' => now()]);
+            app(StaffRewardService::class)->award($task);
+        }
         return $response;
     }
 }

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Customer;
 use App\Services\CustomerCategorizationService;
+use App\Services\ActivityService;
+use App\Http\Requests\ModuleRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -28,6 +30,21 @@ class CustomerController extends CrudController
     protected function defaults(Request $r): array
     {
         return ['customer_code' => 'CUS-'.now()->format('ymd').'-'.str_pad((string) (Customer::withTrashed()->count() + 1), 4, '0', STR_PAD_LEFT)];
+    }
+
+    public function store(ModuleRequest $request, ActivityService $log)
+    {
+        $response = parent::store($request, $log);
+        $customer = Customer::where('mobile', $request->validated('mobile'))->latest('id')->firstOrFail();
+        app(CustomerCategorizationService::class)->categorize($customer);
+        return $response;
+    }
+
+    public function update(ModuleRequest $request, int $id, ActivityService $log)
+    {
+        $response = parent::update($request, $id, $log);
+        app(CustomerCategorizationService::class)->categorize(Customer::findOrFail($id));
+        return $response;
     }
 
     public function import(Request $request, CustomerCategorizationService $categorization)

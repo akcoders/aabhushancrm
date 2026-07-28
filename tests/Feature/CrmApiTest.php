@@ -193,4 +193,38 @@ class CrmApiTest extends TestCase
         $this->artisan('crm:daily-notifications')->assertSuccessful();
         $this->assertSame($count, \App\Models\AppNotification::count());
     }
+
+    public function test_customer_category_cannot_be_manually_selected(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $created = $this->withToken($admin->createToken('test')->plainTextToken)->postJson('/api/customers', [
+            'name' => 'Automatic Category Customer',
+            'mobile' => '9876500011',
+            'category' => 'HNI',
+            'category_override' => true,
+        ])->assertCreated();
+
+        $this->assertSame('Normal', Customer::findOrFail($created->json('data.id'))->category);
+    }
+
+    public function test_manager_can_view_complete_staff_performance_profile(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $staff = User::whereHas('role', fn ($query) => $query->where('slug', 'sales-executive'))->firstOrFail();
+
+        $this->withToken($admin->createToken('test')->plainTextToken)
+            ->getJson("/api/staff/{$staff->id}/performance")
+            ->assertOk()
+            ->assertJsonPath('staff.id', $staff->id)
+            ->assertJsonStructure([
+                'summary' => [
+                    'assigned_actions', 'pending_actions', 'overdue_actions', 'completed_actions',
+                    'timely_actions', 'late_actions', 'timely_rate', 'reward_points_available',
+                    'reward_points_earned', 'assigned_leads', 'converted_leads', 'sales_count', 'sales_revenue',
+                ],
+                'tasks', 'followups', 'redemptions',
+            ]);
+    }
 }

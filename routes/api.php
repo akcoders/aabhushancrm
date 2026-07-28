@@ -107,6 +107,7 @@ Route::middleware(['auth:sanctum', 'module.permission'])->group(function () {
     Route::put('settings', [SettingController::class, 'update']);
     Route::post('settings/branches', [SettingController::class, 'branch']);
     Route::put('settings/roles/{role}/permissions', [SettingController::class, 'rolePermissions']);
+    Route::get('staff/{staff}/performance', [StaffController::class, 'performance']);
     Route::apiResource('staff', StaffController::class);
     Route::get('notifications', [AppNotificationController::class, 'index']);
     Route::post('notifications/read-all', [AppNotificationController::class, 'readAll']);
