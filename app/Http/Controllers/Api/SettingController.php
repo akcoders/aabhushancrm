@@ -30,9 +30,31 @@ return ['message' => 'Settings saved', 'settings' => Setting::all()->groupBy('gr
 
     public function branch(Request $r)
     {
-        $d = $r->validate(['name' => 'required', 'code' => 'required|unique:branches,code', 'phone' => 'nullable', 'email' => 'nullable|email', 'address' => 'nullable']);
+        $d = $r->validate(['name' => 'required|string|max:120', 'code' => 'required|string|max:30|unique:branches,code', 'phone' => 'nullable|string|max:30', 'email' => 'nullable|email', 'address' => 'nullable|string', 'city' => 'nullable|string|max:100', 'is_active' => 'boolean']);
 
         return response()->json(Branch::create($d), 201);
+    }
+
+    public function updateBranch(Request $request, Branch $branch)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:120',
+            'code' => ['required', 'string', 'max:30', Rule::unique('branches', 'code')->ignore($branch)],
+            'phone' => 'nullable|string|max:30',
+            'email' => 'nullable|email',
+            'address' => 'nullable|string',
+            'city' => 'nullable|string|max:100',
+            'is_active' => 'required|boolean',
+        ]);
+        $branch->update($data);
+        return $branch->fresh();
+    }
+
+    public function deleteBranch(Branch $branch)
+    {
+        abort_if($branch->users()->where('is_active', true)->exists(), 422, 'Move or deactivate active staff before deleting this branch.');
+        $branch->delete();
+        return ['message' => 'Branch deleted'];
     }
 
     public function rolePermissions(Request $r, Role $role)

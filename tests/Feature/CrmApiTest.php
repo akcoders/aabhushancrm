@@ -10,6 +10,7 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Permission;
+use App\Models\Branch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -263,5 +264,28 @@ class CrmApiTest extends TestCase
         $this->withToken($token)->postJson('/api/staff', $payload + ['reporting_manager_id' => $manager->id])
             ->assertCreated()
             ->assertJsonPath('reporting_manager.id', $manager->id);
+    }
+
+    public function test_admin_can_create_update_and_safely_delete_branches(): void
+    {
+        $this->seed();
+        $admin = User::firstOrFail();
+        $token = $admin->createToken('test')->plainTextToken;
+        $created = $this->withToken($token)->postJson('/api/settings/branches', [
+            'name' => 'New City Showroom', 'code' => 'NCS', 'city' => 'Udaipur',
+            'phone' => '9876500022', 'is_active' => true,
+        ])->assertCreated()->assertJsonPath('code', 'NCS');
+        $branchId = $created->json('id');
+
+        $this->withToken($token)->putJson("/api/settings/branches/{$branchId}", [
+            'name' => 'New City Flagship', 'code' => 'NCS', 'city' => 'Udaipur',
+            'phone' => '9876500022', 'is_active' => false,
+        ])->assertOk()->assertJsonPath('name', 'New City Flagship')->assertJsonPath('is_active', false);
+
+        $this->withToken($token)->deleteJson("/api/settings/branches/{$branchId}")->assertOk();
+        $this->assertSoftDeleted('branches', ['id' => $branchId]);
+
+        $assignedBranch = Branch::firstOrFail();
+        $this->withToken($token)->deleteJson("/api/settings/branches/{$assignedBranch->id}")->assertUnprocessable();
     }
 }

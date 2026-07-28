@@ -106,6 +106,8 @@ Route::middleware(['auth:sanctum', 'module.permission'])->group(function () {
     Route::get('settings', [SettingController::class, 'index']);
     Route::put('settings', [SettingController::class, 'update']);
     Route::post('settings/branches', [SettingController::class, 'branch']);
+    Route::put('settings/branches/{branch}', [SettingController::class, 'updateBranch']);
+    Route::delete('settings/branches/{branch}', [SettingController::class, 'deleteBranch']);
     Route::post('settings/roles', [SettingController::class, 'createRole']);
     Route::put('settings/roles/{role}', [SettingController::class, 'updateRole']);
     Route::put('settings/roles/{role}/permissions', [SettingController::class, 'rolePermissions']);
