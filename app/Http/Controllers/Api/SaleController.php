@@ -27,6 +27,7 @@ class SaleController extends Controller
             abort_unless(\App\Models\Customer::whereKey($r->validated('customer_id'))->where('assigned_to', auth()->id())->exists(), 403, 'This customer is assigned to another salesperson.');
         }
         $extra = $r->only(['payments', 'discount', 'tax', 'final_amount', 'staff_id', 'notes']);
+        $extra['staff_id'] = ($extra['staff_id'] ?? null) ?: auth()->id();
         if ($this->isSalesExecutive()) $extra['staff_id'] = auth()->id();
         return response()->json($s->create($r->validated() + $extra), 201);
     }

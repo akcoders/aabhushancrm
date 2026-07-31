@@ -13,6 +13,7 @@ import api from "../api";
 import { Badge, Empty, ErrorText, Loading, Modal } from "../components/UI";
 import { money } from "../config";
 import useCompanyName from "../useCompanyName";
+import SearchableSelect from "../components/SearchableSelect";
 
 const tiers = ["Silver", "Gold", "Platinum", "Diamond"];
 const statuses = ["Active", "Suspended", "Expired", "Cancelled"];
@@ -247,31 +248,22 @@ export default function PrivilegeCards() {
                             <div className="grid content-start gap-4 md:grid-cols-2">
                                 <label className="md:col-span-2">
                                     <span className="label">Customer *</span>
-                                    <select
+                                    <SearchableSelect
                                         required
-                                        className="field"
                                         value={form.customer_id || ""}
-                                        onChange={(event) =>
+                                        options={customers.map((customer) => ({
+                                            value: customer.id,
+                                            label: `${customer.name} · ${customer.mobile || "No mobile"} · ${customer.customer_code || "Customer"}`,
+                                            search: customer.email || "",
+                                        }))}
+                                        placeholder="Search customer name, mobile, email or code..."
+                                        onChange={(customerId) =>
                                             setForm({
                                                 ...form,
-                                                customer_id: event.target.value,
+                                                customer_id: customerId,
                                             })
                                         }
-                                    >
-                                        <option value="">
-                                            Select customer
-                                        </option>
-                                        {customers.map((customer) => (
-                                            <option
-                                                key={customer.id}
-                                                value={customer.id}
-                                            >
-                                                {customer.name} ·{" "}
-                                                {customer.mobile} ·{" "}
-                                                {customer.customer_code}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    />
                                 </label>
                                 <label>
                                     <span className="label">Card tier *</span>
