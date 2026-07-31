@@ -5,8 +5,8 @@ import api from "../api";
 import { Loading } from "../components/UI";
 import { useAuth } from "../AuthContext";
 
-export default function VideoRoom() {
-    const { id } = useParams();
+export default function VideoRoom({ guest = false }) {
+    const { id, token } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
     const host = useRef();
@@ -18,25 +18,38 @@ export default function VideoRoom() {
 
     useEffect(() => {
         let disposed = false;
-        Promise.all([
-            api.get(`/video-call-sales/${id}`),
-            api.get("/video-call-sales-config"),
-        ])
-            .then(([callResponse, configResponse]) => {
+        const request = guest
+            ? api.get(`/video-call-invites/${token}`).then((response) => ({
+                  consultation: response.data.call,
+                  join: response.data.join,
+              }))
+            : Promise.all([
+                  api.get(`/video-call-sales/${id}`),
+                  api.get(`/video-call-sales/${id}/join-config`),
+              ]).then(([callResponse, joinResponse]) => ({
+                  consultation: callResponse.data,
+                  join: joinResponse.data,
+              }));
+        request
+            .then(({ consultation, join }) => {
                 if (disposed) return;
-                const consultation = callResponse.data;
-                const domain = configResponse.data.domain;
+                const domain = join.domain;
                 setCall(consultation);
 
                 const startMeeting = () => {
                     if (disposed || !host.current) return;
                     instance.current = new window.JitsiMeetExternalAPI(domain, {
-                        roomName: consultation.room_name,
+                        roomName: join.room_name,
+                        jwt: join.jwt || undefined,
                         parentNode: host.current,
                         width: "100%",
                         height: "100%",
                         userInfo: {
-                            displayName: user?.name || "Kalasha consultant",
+                            displayName:
+                                user?.name ||
+                                consultation.customer?.name ||
+                                consultation.lead?.name ||
+                                "Guest customer",
                             email: user?.email,
                         },
                         configOverwrite: {
@@ -66,11 +79,11 @@ export default function VideoRoom() {
                     });
                     instance.current.addListener("videoConferenceJoined", () => {
                         setJoined(true);
-                        api.put(`/video-call-sales/${id}`, { status: "In Progress" });
+                        if (!guest) api.put(`/video-call-sales/${id}`, { status: "In Progress" });
                     });
                     instance.current.addListener("videoConferenceLeft", () => {
                         setJoined(false);
-                        api.put(`/video-call-sales/${id}`, { status: "Completed" });
+                        if (!guest) api.put(`/video-call-sales/${id}`, { status: "Completed" });
                     });
                 };
 
@@ -91,7 +104,7 @@ export default function VideoRoom() {
             disposed = true;
             instance.current?.dispose();
         };
-    }, [id, user?.email, user?.name]);
+    }, [guest, id, token, user?.email, user?.name]);
 
     const copyInvitation = async () => {
         await navigator.clipboard.writeText(call.meeting_url);
@@ -100,8 +113,8 @@ export default function VideoRoom() {
     };
     const leave = async () => {
         instance.current?.executeCommand("hangup");
-        await api.put(`/video-call-sales/${id}`, { status: "Completed" }).catch(() => {});
-        navigate("/video-sales");
+        if (!guest) await api.put(`/video-call-sales/${id}`, { status: "Completed" }).catch(() => {});
+        navigate(guest ? "/login" : "/video-sales");
     };
 
     return (
@@ -109,7 +122,7 @@ export default function VideoRoom() {
             <header className="flex min-h-20 flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-[#171612] px-4 py-3 md:px-6">
                 <div className="flex min-w-0 items-center gap-3">
                     <button
-                        onClick={() => navigate("/video-sales")}
+                        onClick={() => navigate(guest ? "/login" : "/video-sales")}
                         className="rounded-full border border-white/15 p-2.5 hover:bg-white/10"
                         title="Back to video sales"
                     >

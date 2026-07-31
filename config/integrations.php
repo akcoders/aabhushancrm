@@ -14,5 +14,11 @@ return [
         'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN'),
         'graph_version' => env('META_GRAPH_VERSION', 'v23.0'),
     ],
-    'jitsi' => ['domain' => env('JITSI_DOMAIN', 'meet.jit.si')],
+    'jitsi' => [
+        'domain' => env('JITSI_DOMAIN', 'meet.jit.si'),
+        'jaas_app_id' => env('JAAS_APP_ID'),
+        'jaas_key_id' => env('JAAS_KEY_ID'),
+        'jaas_private_key_base64' => env('JAAS_PRIVATE_KEY_BASE64'),
+        'jaas_private_key_path' => env('JAAS_PRIVATE_KEY_PATH'),
+    ],
 ];

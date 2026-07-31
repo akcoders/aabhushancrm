@@ -11,6 +11,21 @@ Interakt requires an approved WhatsApp template and an API/webhook-enabled plan.
 ad publishing require a Meta app, a Page-linked professional Instagram account, the relevant permissions,
 and an appropriate Page/ad-account access token.
 
+## JaaS video calls without social signup
+
+Create a Jitsi as a Service application and API key in the 8x8 JaaS console. Keep the downloaded private
+key outside `public/`, for example at `storage/app/private/jaas-private-key.pem`, and configure:
+
+```env
+JAAS_APP_ID=vpaas-magic-cookie-your-app-id
+JAAS_KEY_ID=vpaas-magic-cookie-your-app-id/your-key-id
+JAAS_PRIVATE_KEY_PATH=storage/app/private/jaas-private-key.pem
+```
+
+Alternatively, put a base64-encoded PEM key in `JAAS_PRIVATE_KEY_BASE64`. Never commit the private key.
+Run `php artisan config:cache` after changing these variables. Staff receive moderator JWTs and customers
+receive non-moderator JWTs through unguessable `/video-invite/{token}` links.
+
 The React application is already compiled into static HTML, CSS, JavaScript, logo, and favicon files inside:
 
 ```text

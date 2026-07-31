@@ -367,6 +367,10 @@ class CrmApiTest extends TestCase
             'title' => 'Diamond selection consultation', 'scheduled_at' => now()->addDay()->toDateTimeString(),
         ])->assertCreated();
         $this->assertSame($executive->id, $created->json('staff_id'));
-        $this->assertStringStartsWith('https://meet.jit.si/Kalasha-', $created->json('meeting_url'));
+        $this->assertStringContainsString('/video-invite/', $created->json('meeting_url'));
+        $this->getJson('/api/video-call-invites/'.$created->json('guest_token'))
+            ->assertOk()
+            ->assertJsonPath('join.provider', 'meet-jit-si')
+            ->assertJsonPath('call.id', $created->json('id'));
     }
 }

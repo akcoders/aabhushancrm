@@ -42,7 +42,8 @@ export default function App() {
             <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<Login />} />
-                    <Route path="/capture/:token" element={<EventCapture />} />
+                        <Route path="/capture/:token" element={<EventCapture />} />
+                        <Route path="/video-invite/:token" element={<VideoRoom guest />} />
                     <Route element={<Guard />}>
                         <Route index element={<HomeDashboard />} />
                         <Route
