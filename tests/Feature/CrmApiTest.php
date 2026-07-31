@@ -342,4 +342,31 @@ class CrmApiTest extends TestCase
         $this->assertTrue(collect($smartTasks)->every(fn ($task) => $task['assigned_to'] === $executive->id));
         $this->withToken($token)->getJson("/api/smart-tasks/{$otherSmartTask->id}")->assertForbidden();
     }
+
+    public function test_interakt_reply_webhook_creates_linked_inbox_conversation(): void
+    {
+        $this->seed();
+        $customer = Customer::whereNotNull('mobile')->firstOrFail();
+        $this->postJson('/api/webhooks/interakt', [
+            'type' => 'message_received',
+            'data' => [
+                'customer' => ['id' => 'interakt-contact-1', 'channel_phone_number' => '+91'.$customer->mobile, 'name' => $customer->name],
+                'message' => ['id' => 'wa-message-1', 'message' => 'Please show me diamond options.'],
+            ],
+        ])->assertOk();
+        $this->assertDatabaseHas('conversations', ['channel' => 'WhatsApp', 'customer_id' => $customer->id, 'unread_count' => 1]);
+        $this->assertDatabaseHas('conversation_messages', ['external_message_id' => 'wa-message-1', 'direction' => 'Inbound']);
+    }
+
+    public function test_sales_executive_can_schedule_their_own_video_sale(): void
+    {
+        $this->seed();
+        $executive = User::whereHas('role', fn ($q) => $q->where('slug', 'sales-executive'))->firstOrFail();
+        $token = $executive->createToken('video-test')->plainTextToken;
+        $created = $this->withToken($token)->postJson('/api/video-call-sales', [
+            'title' => 'Diamond selection consultation', 'scheduled_at' => now()->addDay()->toDateTimeString(),
+        ])->assertCreated();
+        $this->assertSame($executive->id, $created->json('staff_id'));
+        $this->assertStringStartsWith('https://meet.jit.si/Kalasha-', $created->json('meeting_url'));
+    }
 }

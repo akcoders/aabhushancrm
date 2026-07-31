@@ -28,9 +28,17 @@ use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\TaskRuleController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AdCampaignController;
+use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\InteraktWebhookController;
+use App\Http\Controllers\Api\MetaWebhookController;
+use App\Http\Controllers\Api\VideoCallSaleController;
 
 Route::post('auth/login', [AuthController::class, 'login'])->name('login');
 Route::post('events/{token}/capture', [ExhibitionController::class, 'capture'])->name('events.capture');
+Route::post('webhooks/interakt', InteraktWebhookController::class);
+Route::get('webhooks/meta', [MetaWebhookController::class, 'verify']);
+Route::post('webhooks/meta', [MetaWebhookController::class, 'receive']);
 
 Route::middleware(['auth:sanctum', 'module.permission'])->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
@@ -59,6 +67,12 @@ Route::middleware(['auth:sanctum', 'module.permission'])->group(function () {
     Route::post('marketing-campaigns/{marketingCampaign}/launch', [MarketingCampaignController::class, 'launch']);
     Route::patch('campaign-recipients/{campaignRecipient}/engagement', [MarketingCampaignController::class, 'engagement']);
     Route::apiResource('marketing-campaigns', MarketingCampaignController::class)->parameters(['marketing-campaigns' => 'marketingCampaign']);
+    Route::post('conversations/{conversation}/messages', [ConversationController::class, 'send']);
+    Route::apiResource('conversations', ConversationController::class)->only(['index', 'show', 'update']);
+    Route::post('ad-campaigns/{adCampaign}/publish', [AdCampaignController::class, 'publish']);
+    Route::apiResource('ad-campaigns', AdCampaignController::class)->except('show')->parameters(['ad-campaigns' => 'adCampaign']);
+    Route::get('video-call-sales-config', [VideoCallSaleController::class, 'config']);
+    Route::apiResource('video-call-sales', VideoCallSaleController::class)->parameters(['video-call-sales' => 'videoCallSale']);
     Route::get('loyalty', [LoyaltyController::class, 'index']);
     Route::get('loyalty/{customer}', [LoyaltyController::class, 'wallet']);
     Route::post('loyalty/{customer}/adjust', [LoyaltyController::class, 'adjust']);

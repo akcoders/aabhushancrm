@@ -12,7 +12,7 @@ class MarketingCampaign extends Model
 
     protected function casts(): array
     {
-        return ['channels' => 'array', 'audience_rules' => 'array', 'scheduled_at' => 'datetime'];
+        return ['channels' => 'array', 'audience_rules' => 'array', 'scheduled_at' => 'datetime', 'provider_data' => 'array'];
     }
 
     public function offer()

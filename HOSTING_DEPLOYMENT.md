@@ -2,6 +2,15 @@
 
 This deployment package does not require Node.js, npm, Vite, or React tooling on the hosting server.
 
+## Omnichannel setup
+
+Copy the Interakt, Meta and Jitsi variables from `.env.production.example` into the private server `.env`.
+Set the Interakt HTTPS webhook to `/api/webhooks/interakt` and the Meta webhook to `/api/webhooks/meta`.
+Run `php artisan schedule:run` every minute from hosting cron so scheduled campaigns are dispatched.
+Interakt requires an approved WhatsApp template and an API/webhook-enabled plan. Instagram messaging and
+ad publishing require a Meta app, a Page-linked professional Instagram account, the relevant permissions,
+and an appropriate Page/ad-account access token.
+
 The React application is already compiled into static HTML, CSS, JavaScript, logo, and favicon files inside:
 
 ```text

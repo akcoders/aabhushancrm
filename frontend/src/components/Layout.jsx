@@ -25,6 +25,9 @@ import {
     WandSparkles,
     SlidersHorizontal,
     Award,
+    MessagesSquare,
+    Video,
+    Camera,
 } from "lucide-react";
 import { useAuth } from "../AuthContext";
 const groups = [
@@ -60,6 +63,9 @@ const groups = [
         [
             ["/exhibitions", "Events & Exhibitions", CalendarDays],
             ["/marketing", "Marketing Campaigns", Megaphone],
+            ["/inbox", "WhatsApp & Insta Inbox", MessagesSquare],
+            ["/ad-campaigns", "Instagram & Meta Ads", Camera],
+            ["/video-sales", "Video Call Sales", Video],
             ["/festival-campaigns", "Festival Campaigns", CalendarDays],
             ["/reports", "Reports", BarChart3],
         ],
@@ -88,6 +94,7 @@ const permissionModule = (path) => ({
     "/": "dashboard", "/smart-work": "tasks", "/smart-tasks": "tasks", "/task-rules": "tasks",
     "/message-templates": "marketing", "/tasks": "tasks", "/privilege-cards": "customers",
     "/festival-campaigns": "marketing", "/rewards": "rewards", "/notifications": "notifications",
+    "/inbox": "inbox", "/ad-campaigns": "ads", "/video-sales": "video-calls",
     "/staff": "staff", "/settings": "settings", "/category-rules": "settings",
 }[path] || path.slice(1));
 export default function Layout() {

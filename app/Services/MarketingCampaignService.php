@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 
 class MarketingCampaignService
 {
+    public function __construct(private InteraktService $interakt) {}
     public function audience(array $rules, array $channels): Collection
     {
         $type = $rules['audience'] ?? 'customers';
@@ -89,15 +90,30 @@ return $this->consented($q, $channels)->limit(5000)->get();
             if (! $campaign->recipients()->exists()) {
                 $this->prepare($campaign);
             }$now = now();
+            $sent = 0;
             foreach ($campaign->recipients()->with('recipient')->get() as $recipient) {
-                $recipient->update(['status' => 'Delivered', 'sent_at' => $now, 'delivered_at' => $now]);
                 foreach ($recipient->channels as $channel) {
-                    CommunicationLog::create(['communicable_type' => $recipient->recipient_type, 'communicable_id' => $recipient->recipient_id, 'type' => $channel, 'direction' => 'Outbound', 'subject' => $campaign->subject, 'content' => $campaign->message, 'status' => 'Delivered', 'user_id' => auth()->id(), 'communicated_at' => $now]);
+                    $status = 'Sent'; $externalId = null; $failure = null;
+                    try {
+                        if ($channel === 'WhatsApp' && $campaign->provider === 'Interakt') {
+                            abort_if(blank($campaign->template_name), 422, 'Select an approved Interakt template before launch.');
+                            $result = $this->interakt->sendTemplate($recipient->mobile, $campaign->template_name, $campaign->template_language ?: 'en', [$this->personalize($campaign->message, $recipient)], $campaign->media_url, 'campaign_recipient:'.$recipient->id);
+                            $externalId = $result['id'] ?? null;
+                        }
+                        $sent++;
+                    } catch (\Throwable $e) { $status = 'Failed'; $failure = $e->getMessage(); }
+                    $recipient->update(['status' => $status, 'sent_at' => $status === 'Sent' ? $now : null, 'external_message_id' => $externalId, 'failure_reason' => $failure]);
+                    CommunicationLog::create(['communicable_type' => $recipient->recipient_type, 'communicable_id' => $recipient->recipient_id, 'type' => $channel, 'direction' => 'Outbound', 'subject' => $campaign->subject, 'content' => $campaign->message, 'status' => $status, 'user_id' => auth()->id(), 'communicated_at' => $now]);
                 }$recipient->recipient?->update(['last_engaged_at' => $now]);
             }$count = $campaign->recipients()->count();
-            $campaign->update(['status' => 'Sent', 'sent_count' => $count, 'delivered_count' => $count]);
+            $campaign->update(['status' => $sent ? 'Sent' : 'Failed', 'sent_count' => $sent, 'delivered_count' => $campaign->recipients()->whereNotNull('delivered_at')->count()]);
 
             return $campaign->fresh(['offer', 'exhibition', 'recipients']);
         });
+    }
+
+    private function personalize(string $message, $recipient): string
+    {
+        return str_replace(['{{name}}', '{{offer}}'], [$recipient->name, $recipient->campaign?->offer?->title ?? 'your selected privilege'], $message);
     }
 }

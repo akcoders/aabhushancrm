@@ -18,7 +18,7 @@ class MarketingCampaignController extends Controller
 
     public function store(Request $r, MarketingCampaignService $service)
     {
-        $d = $r->validate(['name' => 'required', 'objective' => 'required', 'channels' => 'required|array|min:1', 'channels.*' => 'in:WhatsApp,Email', 'offer_id' => 'nullable|exists:offers,id', 'exhibition_id' => 'nullable|exists:exhibitions,id', 'audience_rules' => 'required|array', 'segment_name' => 'nullable', 'subject' => 'nullable', 'message' => 'required', 'scheduled_at' => 'nullable|date']);
+        $d = $r->validate(['name' => 'required', 'objective' => 'required', 'channels' => 'required|array|min:1', 'channels.*' => 'in:WhatsApp,Email', 'offer_id' => 'nullable|exists:offers,id', 'exhibition_id' => 'nullable|exists:exhibitions,id', 'audience_rules' => 'required|array', 'segment_name' => 'nullable', 'subject' => 'nullable', 'message' => 'required', 'scheduled_at' => 'nullable|date', 'provider' => 'nullable|in:Interakt', 'template_name' => 'nullable|string|max:255', 'template_language' => 'nullable|string|max:12', 'media_url' => 'nullable|url']);
         $campaign = MarketingCampaign::create($d + ['created_by' => auth()->id()]);
         $service->prepare($campaign);
 
@@ -33,7 +33,7 @@ class MarketingCampaignController extends Controller
     public function update(Request $r, MarketingCampaign $marketingCampaign, MarketingCampaignService $service)
     {
         abort_if($marketingCampaign->status === 'Sent', 422, 'Sent campaigns cannot be edited.');
-        $d = $r->validate(['name' => 'sometimes|required', 'objective' => 'sometimes|required', 'channels' => 'sometimes|array|min:1', 'offer_id' => 'nullable|exists:offers,id', 'exhibition_id' => 'nullable|exists:exhibitions,id', 'audience_rules' => 'sometimes|array', 'segment_name' => 'nullable', 'subject' => 'nullable', 'message' => 'sometimes|required', 'scheduled_at' => 'nullable|date', 'status' => 'sometimes|in:Draft,Scheduled,Paused']);
+        $d = $r->validate(['name' => 'sometimes|required', 'objective' => 'sometimes|required', 'channels' => 'sometimes|array|min:1', 'offer_id' => 'nullable|exists:offers,id', 'exhibition_id' => 'nullable|exists:exhibitions,id', 'audience_rules' => 'sometimes|array', 'segment_name' => 'nullable', 'subject' => 'nullable', 'message' => 'sometimes|required', 'scheduled_at' => 'nullable|date', 'status' => 'sometimes|in:Draft,Scheduled,Paused', 'provider' => 'nullable|in:Interakt', 'template_name' => 'nullable|string|max:255', 'template_language' => 'nullable|string|max:12', 'media_url' => 'nullable|url']);
         $marketingCampaign->update($d);
         $service->prepare($marketingCampaign);
 
@@ -57,6 +57,10 @@ class MarketingCampaignController extends Controller
 
     public function launch(MarketingCampaign $marketingCampaign, MarketingCampaignService $service)
     {
+        if ($marketingCampaign->scheduled_at?->isFuture()) {
+            $marketingCampaign->update(['status' => 'Scheduled']);
+            return ['message' => 'Campaign scheduled for automatic dispatch.', 'campaign' => $marketingCampaign->fresh()];
+        }
         return ['message' => 'Campaign dispatched to consenting recipients.', 'campaign' => $service->launch($marketingCampaign)];
     }
 

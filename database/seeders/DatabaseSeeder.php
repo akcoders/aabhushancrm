@@ -31,11 +31,11 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $branch = Branch::create(['name' => 'Abhushan Flagship Showroom', 'code' => 'HQ', 'phone' => '+91 98765 43210', 'email' => 'showroom@jewellerycrm.test', 'address' => 'C-Scheme, Jaipur', 'city' => 'Jaipur']);
-        $modules = ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'exhibitions', 'marketing', 'retention', 'offers', 'loyalty', 'gift-cards', 'tasks', 'reports', 'settings', 'staff'];
+        $modules = ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'exhibitions', 'marketing', 'inbox', 'ads', 'video-calls', 'retention', 'offers', 'loyalty', 'gift-cards', 'tasks', 'reports', 'settings', 'staff'];
         $permissions = collect();
         foreach ($modules as $m) {
             foreach (['view', 'create', 'update', 'delete'] as $a) {
-                $permissions->push(Permission::create(['name' => ucwords("$a ".str_replace('-', ' ', $m)), 'slug' => "$m.$a", 'module' => $m]));
+                $permissions->push(Permission::firstOrCreate(['slug' => "$m.$a"], ['name' => ucwords("$a ".str_replace('-', ' ', $m)), 'module' => $m]));
             }
         }
         $roles = [];
@@ -44,9 +44,9 @@ class DatabaseSeeder extends Seeder
                 'Super Admin' => 1, 'Sales Manager' => 3, 'Sales Executive' => 4, 'Event Manager' => 3, 'Accountant' => 3,
             ][$name]]);
         }$roles['Super Admin']->permissions()->sync($permissions->pluck('id'));
-        $roles['Sales Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'marketing', 'retention', 'offers', 'reports'])->pluck('id'));
+        $roles['Sales Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'custom-orders', 'marketing', 'inbox', 'ads', 'video-calls', 'retention', 'offers', 'reports'])->pluck('id'));
         $roles['Sales Executive']->permissions()->sync($permissions
-            ->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'retention', 'tasks'])
+            ->whereIn('module', ['dashboard', 'leads', 'followups', 'customers', 'sales', 'inbox', 'video-calls', 'retention', 'tasks'])
             ->reject(fn ($permission) => str_ends_with($permission->slug, '.delete'))
             ->pluck('id'));
         $roles['Event Manager']->permissions()->sync($permissions->whereIn('module', ['dashboard', 'exhibitions', 'marketing', 'offers', 'leads', 'followups', 'reports'])->pluck('id'));
